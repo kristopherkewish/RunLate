@@ -14,17 +14,8 @@ import {
 	type Mode,
 	type TimetableDay
 } from '../footscray';
-import { num, type Feed, type LiveData } from './feeds';
-import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
-
-// `trip` is required in the proto but treat it as optional: we only read what's there.
-type TripUpdate = Omit<GtfsRealtimeBindings.transit_realtime.ITripUpdate, 'trip'> & {
-	trip?: GtfsRealtimeBindings.transit_realtime.ITripUpdate['trip'];
-};
-type StopTimeUpdate = GtfsRealtimeBindings.transit_realtime.TripUpdate.IStopTimeUpdate;
-const TripRel = GtfsRealtimeBindings.transit_realtime.TripDescriptor.ScheduleRelationship;
-const StopRel =
-	GtfsRealtimeBindings.transit_realtime.TripUpdate.StopTimeUpdate.ScheduleRelationship;
+import type { Feed, LiveData } from './feeds';
+import { STOP, TRIP, type StopTimeUpdate, type TranslatedString, type TripUpdate } from './gtfsr';
 
 export const WINDOW_BEFORE_S = 30; // keep a departed train on screen briefly ("Now")
 export const WINDOW_AFTER_S = 4 * 3600;
@@ -38,8 +29,7 @@ const METRO_STOP_PLATFORM: Record<string, number> = {
 	'26508': 5,
 	'26509': 6
 };
-// ADDED, UNSCHEDULED, DUPLICATED, NEW (numeric: NEW isn't in older bindings).
-const EXTRA_TRIP_RELS = new Set<number>([1, 2, 6, 8]);
+const EXTRA_TRIP_RELS = new Set<number>([TRIP.ADDED, TRIP.UNSCHEDULED, TRIP.DUPLICATED, TRIP.NEW]);
 
 /** Trip updates for Footscray lines only; everything else is discarded before any real work. */
 export function indexTripUpdates(...feeds: (Feed | null)[]): Map<string, TripUpdate> {
@@ -58,8 +48,8 @@ export function indexTripUpdates(...feeds: (Feed | null)[]): Map<string, TripUpd
 	return out;
 }
 
-const stopTime = (u: StopTimeUpdate) => num(u.departure?.time) ?? num(u.arrival?.time);
-const stopDelay = (u: StopTimeUpdate) => num(u.departure?.delay) ?? num(u.arrival?.delay);
+const stopTime = (u: StopTimeUpdate) => u.departure?.time ?? u.arrival?.time ?? null;
+const stopDelay = (u: StopTimeUpdate) => u.departure?.delay ?? u.arrival?.delay ?? null;
 
 export interface LiveEstimate {
 	estimated: number;
@@ -71,7 +61,7 @@ export interface LiveEstimate {
 /** Applies a GTFS-R trip update to a scheduled Footscray departure. */
 export function estimate(scheduled: number, seq: number, tu: TripUpdate): LiveEstimate {
 	const base = { estimated: scheduled, cancelled: false, passed: false };
-	if (tu.trip?.scheduleRelationship === TripRel.CANCELED) return { ...base, cancelled: true };
+	if (tu.trip?.scheduleRelationship === TRIP.CANCELED) return { ...base, cancelled: true };
 	const updates = tu.stopTimeUpdate ?? [];
 	if (!updates.length) return base;
 
@@ -81,7 +71,7 @@ export function estimate(scheduled: number, seq: number, tu: TripUpdate): LiveEs
 			(u.stopId != null && FSY_STOPS.has(u.stopId))
 	);
 	if (here) {
-		if (here.scheduleRelationship === StopRel.SKIPPED) return { ...base, cancelled: true };
+		if (here.scheduleRelationship === STOP.SKIPPED) return { ...base, cancelled: true };
 		const t = stopTime(here);
 		if (t != null) return { ...base, estimated: t };
 		const d = stopDelay(here);
@@ -101,9 +91,7 @@ export function estimate(scheduled: number, seq: number, tu: TripUpdate): LiveEs
 	return base;
 }
 
-function text(
-	t: GtfsRealtimeBindings.transit_realtime.ITranslatedString | null | undefined
-): string {
+function text(t: TranslatedString | null | undefined): string {
 	const tr = t?.translation ?? [];
 	return (tr.find((x) => !x.language || x.language === 'en') ?? tr[0])?.text?.trim() ?? '';
 }
@@ -117,8 +105,7 @@ export function footscrayAlerts(feed: Feed | null, now: number): Alert[] {
 		if (!a) continue;
 		const periods = a.activePeriod ?? [];
 		const active =
-			!periods.length ||
-			periods.some((p) => (num(p.start) ?? 0) <= now && now <= (num(p.end) || Infinity));
+			!periods.length || periods.some((p) => (p.start ?? 0) <= now && now <= (p.end || Infinity));
 		if (!active) continue;
 		const lines = new Set<string>();
 		for (const ie of a.informedEntity ?? []) {
@@ -190,7 +177,7 @@ export function buildBoard({ days, lines, live, now }: BuildInput): Board {
 	// (e.g. set-down-only citybound V/Line), so "not in our files" isn't enough.
 	for (const [id, tu] of updates) {
 		if (seenIds.has(id)) continue;
-		if (!EXTRA_TRIP_RELS.has(tu.trip?.scheduleRelationship ?? TripRel.SCHEDULED)) continue;
+		if (!EXTRA_TRIP_RELS.has(tu.trip?.scheduleRelationship ?? TRIP.SCHEDULED)) continue;
 		const here = tu.stopTimeUpdate?.find((u) => u.stopId && FSY_STOPS.has(u.stopId));
 		const when = here && stopTime(here);
 		if (!here || when == null || when < from || when > to) continue;
@@ -209,7 +196,7 @@ export function buildBoard({ days, lines, live, now }: BuildInput): Board {
 			scheduled: when,
 			estimated: when,
 			live: true,
-			cancelled: here.scheduleRelationship === StopRel.SKIPPED,
+			cancelled: here.scheduleRelationship === STOP.SKIPPED,
 			stops: []
 		});
 	}
@@ -228,8 +215,7 @@ export function buildBoard({ days, lines, live, now }: BuildInput): Board {
 			.slice(0, PER_PLATFORM)
 	}));
 
-	const feedTs =
-		num(live?.metroTrips?.header?.timestamp) ?? num(live?.vlineTrips?.header?.timestamp);
+	const feedTs = live?.metroTrips?.header?.timestamp ?? live?.vlineTrips?.header?.timestamp ?? null;
 	return {
 		generatedAt: now,
 		live: isLive,

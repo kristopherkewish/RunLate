@@ -75,3 +75,8 @@ export function clock(epochSec: number): string {
 		.replace(/\s?[ap]m$/i, '')
 		.trim();
 }
+
+/** Melbourne local hour (0-23) of an instant. */
+export function melbourneHour(epochMs: number): number {
+	return +parts(epochMs).hour;
+}

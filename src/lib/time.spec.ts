@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, clock, gtfsTimeToSeconds, melbourneDate, serviceDayBase } from './time';
+import {
+	addDays,
+	clock,
+	gtfsTimeToSeconds,
+	melbourneDate,
+	melbourneHour,
+	serviceDayBase
+} from './time';
 
 const local = (epochSec: number) =>
 	new Date(epochSec * 1000).toLocaleString('en-AU', {
@@ -46,5 +53,12 @@ describe('date helpers', () => {
 
 	it('clock drops am/pm like the station screens', () => {
 		expect(clock(serviceDayBase('20261109') + gtfsTimeToSeconds('21:06:00'))).toBe('9:06');
+	});
+});
+
+describe('melbourneHour', () => {
+	it('uses Melbourne local time', () => {
+		// 2026-11-08T14:30Z is 01:30 in Melbourne (AEDT).
+		expect(melbourneHour(Date.UTC(2026, 10, 8, 14, 30))).toBe(1);
 	});
 });

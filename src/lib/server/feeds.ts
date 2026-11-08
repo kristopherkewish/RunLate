@@ -1,7 +1,7 @@
-import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
+import { METRO_LINES, VLINE_LINES } from '../footscray';
+import { decodeGtfsRealtime, type Feed } from './gtfsr';
 
-const { FeedMessage } = GtfsRealtimeBindings.transit_realtime;
-export type Feed = GtfsRealtimeBindings.transit_realtime.IFeedMessage;
+export type { Feed };
 
 const BASE = 'https://api.opendata.transport.vic.gov.au/opendata/public-transport/gtfs/realtime/v1';
 export const FEEDS = {
@@ -11,27 +11,21 @@ export const FEEDS = {
 } as const;
 export type FeedName = keyof typeof FEEDS;
 
-/**
- * Decodes a GTFS-R feed into a plain object. `defaults: false` matters: the
- * raw protobufjs message reports absent fields as 0 (e.g. a missing
- * stop_sequence or departure time), which would corrupt estimates.
- */
-export function decodeFeed(bytes: Uint8Array): Feed {
-	return FeedMessage.toObject(FeedMessage.decode(bytes), {
-		longs: Number,
-		enums: Number,
-		defaults: false
-	}) as Feed;
-}
+const SHOWN_LINES = new Set<string>([...METRO_LINES, ...VLINE_LINES]);
+const ALERT_ROUTE = new RegExp(`^aus:vic:vic-02-(${METRO_LINES.join('|')})(-R)?:$`);
 
-/** Converts protobuf Long values to plain numbers. */
-export function num(v: unknown): number | null {
-	if (v === null || v === undefined) return null;
-	if (typeof v === 'number') return v;
-	if (typeof v === 'object' && v && 'toNumber' in v)
-		return (v as { toNumber(): number }).toNumber();
-	const n = Number(v);
-	return Number.isFinite(n) ? n : null;
+/**
+ * Decodes a GTFS-R feed, keeping only trips and alerts that can matter at
+ * Footscray (pass `all = true` to keep everything). Other lines' trips are
+ * skipped without decoding their stop times. Trip IDs look like
+ * "02-SUY--74-T5-Z030", where the 3 letters are the line.
+ */
+export function decodeFeed(bytes: Uint8Array, all = false): Feed {
+	if (all) return decodeGtfsRealtime(bytes);
+	return decodeGtfsRealtime(bytes, {
+		trip: (id) => !!id && SHOWN_LINES.has(id.slice(3, 6)),
+		alert: (a) => (a.informedEntity ?? []).some((ie) => ALERT_ROUTE.test(ie.routeId ?? ''))
+	});
 }
 
 async function fetchFeed(name: FeedName, key: string): Promise<Feed> {
@@ -48,27 +42,36 @@ export interface LiveData {
 
 // Workers' Cache API is a no-op on *.workers.dev, so memoise per isolate.
 // Any number of open screens hitting the same isolate share one upstream fetch.
-const TTL_MS = 30_000;
-let memo: { at: number; data: Promise<LiveData> } | null = null;
+// Trip updates change constantly; alerts (mostly planned works) rarely do, and
+// they're the most expensive feed to decode, so they're refreshed less often.
+const TTL_MS: Record<FeedName, number> = {
+	metroTrips: 30_000,
+	vlineTrips: 30_000,
+	metroAlerts: 5 * 60_000
+};
+const RETRY_MS = 5_000;
+const memo = new Map<FeedName, { at: number; ttl: number; data: Promise<Feed | null> }>();
 
-/** Fetches all feeds; a failed feed comes back as null rather than failing the board. */
-export function getLiveData(key: string, now = Date.now()): Promise<LiveData> {
-	if (memo && now - memo.at < TTL_MS) return memo.data;
-	const settle = (name: FeedName) =>
-		fetchFeed(name, key).catch((e) => {
-			console.error('feed failed', name, String(e));
-			return null;
-		});
-	const data = Promise.all([
-		settle('metroTrips'),
-		settle('vlineTrips'),
-		settle('metroAlerts')
-	]).then(([metroTrips, vlineTrips, metroAlerts]) => ({ metroTrips, vlineTrips, metroAlerts }));
-	memo = { at: now, data };
-	// Don't keep a fully failed result for the whole TTL.
-	data.then((d) => {
-		if (!d.metroTrips && !d.vlineTrips && memo?.data === data)
-			memo = { at: now - TTL_MS + 5000, data };
+function cachedFeed(name: FeedName, key: string, now: number): Promise<Feed | null> {
+	const hit = memo.get(name);
+	if (hit && now - hit.at < hit.ttl) return hit.data;
+	const data = fetchFeed(name, key).catch((e) => {
+		console.error('feed failed', name, String(e));
+		// Keep serving the last good copy for a while, and retry soon.
+		const entry = memo.get(name);
+		if (entry?.data === data) entry.ttl = RETRY_MS;
+		return hit?.data ?? null;
 	});
+	memo.set(name, { at: now, ttl: TTL_MS[name], data });
 	return data;
+}
+
+/** Fetches all feeds; a failed feed comes back as its last good copy (or null) rather than failing the board. */
+export async function getLiveData(key: string, now = Date.now()): Promise<LiveData> {
+	const [metroTrips, vlineTrips, metroAlerts] = await Promise.all([
+		cachedFeed('metroTrips', key, now),
+		cachedFeed('vlineTrips', key, now),
+		cachedFeed('metroAlerts', key, now)
+	]);
+	return { metroTrips, vlineTrips, metroAlerts };
 }

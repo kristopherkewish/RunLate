@@ -158,3 +158,16 @@ describe('buildBoard against recorded feeds', () => {
 		expect(offline.platforms.flatMap((p) => p.departures).every((d) => !d.live)).toBe(true);
 	});
 });
+
+describe('decodeFeed filtering', () => {
+	it('drops entities for lines that do not serve Footscray before conversion', () => {
+		const bytes = fixture('metro-trip-updates.pb');
+		const all = decodeFeed(bytes, true).entity!.length;
+		const kept = decodeFeed(bytes).entity!;
+		expect(kept.length).toBeGreaterThan(0);
+		expect(kept.length).toBeLessThan(all);
+		expect(
+			kept.every((e) => ['SUY', 'WER', 'WIL'].includes(e.tripUpdate!.trip!.tripId!.slice(3, 6)))
+		).toBe(true);
+	});
+});

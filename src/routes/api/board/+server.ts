@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { dev } from '$app/env';
 import type { RequestHandler } from './$types';
 import type { TimetableDay, TimetableIndex } from '../../../lib/footscray';
-import { addDays, melbourneDate } from '../../../lib/time';
+import { addDays, melbourneDate, melbourneHour } from '../../../lib/time';
 import { getLiveData } from '../../../lib/server/feeds';
 import { buildBoard } from '../../../lib/server/board';
 
@@ -31,9 +31,16 @@ export const GET: RequestHandler = async ({ fetch, url }) => {
 	const fetcher = (path: string) =>
 		assets ? assets.fetch(new URL(path, url.origin)) : fetch(path);
 
-	// Yesterday's service day covers after-midnight trips; tomorrow's covers the late-evening lookahead.
+	// Only parse the service days that can matter: yesterday's runs past midnight
+	// (GTFS times like 26:30), and tomorrow's can fall in a late-evening lookahead
+	// (e.g. Night Network). Each file parsed is CPU on the free plan's 10 ms budget.
 	const today = melbourneDate(nowMs);
-	const dates = [addDays(today, -1), today, addDays(today, 1)];
+	const hour = melbourneHour(nowMs);
+	const dates = [
+		...(hour < 5 ? [addDays(today, -1)] : []),
+		today,
+		...(hour >= 20 ? [addDays(today, 1)] : [])
+	];
 	const [index, ...days] = await Promise.all([
 		loadJson<TimetableIndex>('/timetable/index.json', fetcher),
 		...dates.map((d) => loadJson<TimetableDay>(`/timetable/${d}.json`, fetcher))

@@ -1,0 +1,5 @@
+stop_id,stop_name,stop_lat,stop_lon,stop_url,location_type,parent_station,wheelchair_boarding,level_id
+"20043","Southern Cross Railway Station","0","0","","","","1",""
+"22240","Footscray Railway Station","0","0","","","","1",""
+"30","Tarneit Railway Station","0","0","","","","1",""
+"31","Waurn Ponds Railway Station","0","0","","","","1",""

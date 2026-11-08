@@ -1,0 +1,10 @@
+stop_id,stop_name,stop_lat,stop_lon,stop_url,location_type,parent_station,wheelchair_boarding,level_id,platform_code
+"1","Sunshine Station","0","0","","","","1","","1"
+"15518","Footscray Station","0","0","","","vic:rail:FSY","1","","1"
+"15519","Footscray Station","0","0","","","vic:rail:FSY","1","","2"
+"2","Arden Station","0","0","","","","1","",""
+"3","Town Hall Station","0","0","","","","1","",""
+"4","Anzac Station","0","0","","","","1","",""
+"5","Cranbourne Station","0","0","","","","1","",""
+"6","Middle Footscray Station","0","0","","","","1","",""
+"7","Sunbury Station","0","0","","","","1","",""

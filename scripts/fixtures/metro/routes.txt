@@ -1,0 +1,4 @@
+route_id,agency_id,route_short_name,route_long_name,route_type,route_color,route_text_color
+"aus:vic:vic-02-SUY:","","Sunbury","Sunbury Line","400","FFBE00","000000"
+"aus:vic:vic-02-SUY-R:","","Replacement Bus","Sunbury Line","400","FE5000","FFFFFF"
+"aus:vic:vic-02-CBE:","","Cranbourne","Cranbourne Line","400","34ACE1","FFFFFF"

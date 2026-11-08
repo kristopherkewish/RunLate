@@ -1,0 +1,30 @@
+/* The station screens are always dark, so the board is too (no light theme). */
+:root {
+	color-scheme: dark;
+	--bg: #000;
+	--panel: #0d0f14;
+	--panel-head: #1a1d24;
+	--fg: #fff;
+	--muted: #a9afbb;
+	--accent: #ffffff;
+	--brand: #0072ce;
+	--vline: #8f1a95;
+	--warn: #ffb81c;
+	--bad: #ff5a4f;
+	--alert-bg: #ffb81c;
+	--alert-fg: #000;
+	--gap: clamp(4px, 0.6vw, 12px);
+}
+
+html,
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--fg);
+	font-family: 'Public Sans', system-ui, sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+
+* {
+	box-sizing: border-box;
+}

@@ -1,0 +1,14 @@
+# Package Managers
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+
+# Miscellaneous
+/static/
+static/timetable
+src/lib/server/fixtures
+scripts/fixtures
+worker-configuration.d.ts
+package-lock.json

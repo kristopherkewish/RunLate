@@ -1,0 +1,3 @@
+route_id,agency_id,route_short_name,route_long_name,route_type,route_color,route_text_color
+"aus:vic:vic-01-GEL:","","Geelong","Waurn Ponds - Melbourne via Geelong","2","8F1A95","FFFFFF"
+"aus:vic:vic-01-TRN:","","Gippsland","Traralgon - Melbourne","2","8F1A95","FFFFFF"

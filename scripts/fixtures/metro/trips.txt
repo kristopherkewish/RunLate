@@ -1,0 +1,7 @@
+route_id,service_id,trip_id,shape_id,trip_headsign,direction_id,block_id,wheelchair_accessible,bikes_allowed
+"aus:vic:vic-02-SUY:","WK","02-SUY--1-T5-A001","s","Cranbourne via Metro Tunnel","1","B1","1","1"
+"aus:vic:vic-02-CBE:","WK","02-CBE--1-T5-A001","s","Cranbourne","0","B1","1","1"
+"aus:vic:vic-02-CBE:","WK","02-CBE--1-T5-A002","s","Town Hall","1","B1","1","1"
+"aus:vic:vic-02-SUY:","WK","02-SUY--1-T5-A003","s","Sunbury","0","","1","1"
+"aus:vic:vic-02-SUY:","WK","02-SUY--1-T5-A004","s","Footscray","1","","1","1"
+"aus:vic:vic-02-SUY-R:","WK","02-SUY-R-1-T5-BUS1","s","Footscray","1","","1","1"

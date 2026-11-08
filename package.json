@@ -1,0 +1,47 @@
+{
+	"name": "runlate",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"imports": {
+		"#lib": "./src/lib/index.js",
+		"#lib/*": "./src/lib/*"
+	},
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"test:unit": "vitest",
+		"test": "npm run test:unit -- --run",
+		"gen": "wrangler types",
+		"lint": "prettier --check .",
+		"format": "prettier --write .",
+		"timetable": "tsx scripts/build-timetable.ts"
+	},
+	"devDependencies": {
+		"@sveltejs/adapter-cloudflare": "^8.0.0",
+		"@sveltejs/kit": "^3.0.0",
+		"@sveltejs/vite-plugin-svelte": "^7.2.0",
+		"@types/node": "^26.6.6",
+		"prettier": "^3.8.3",
+		"prettier-plugin-svelte": "^4.1.0",
+		"svelte": "^5.57.2",
+		"svelte-check": "^4.6.0",
+		"tsx": "^4.23.15",
+		"typescript": "^6.0.3",
+		"vite": "^8.3.0",
+		"vitest": "^4.1.8",
+		"wrangler": "^4.97.0"
+	},
+	"dependencies": {
+		"@fontsource/public-sans": "^5.3.0",
+		"gtfs-realtime-bindings": "^2.2.0"
+	},
+	"allowScripts": {
+		"esbuild@0.28.2": true,
+		"workerd@1.20261104.1": true
+	}
+}

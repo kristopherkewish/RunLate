@@ -42,6 +42,8 @@ function project(feed: Feed | Record<string, any>): unknown {
 			if (e.alert) {
 				const a = e.alert;
 				out.alert = {
+					cause: a.cause,
+					effect: a.effect,
 					activePeriod: (a.activePeriod ?? []).map((p: any) => pick(p, ['start', 'end'])),
 					informedEntity: (a.informedEntity ?? []).map((s: any) =>
 						pick(s, ['routeId', 'directionId'])

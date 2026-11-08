@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { TimetableDay, TimetableIndex } from '../footscray';
-import { buildBoard, estimate, footscrayAlerts, indexTripUpdates } from './board';
+import { buildBoard, estimate, footscrayAlerts, indexTripUpdates, isServiceAlert } from './board';
+import { EFFECT } from './gtfsr';
 import { decodeFeed, type Feed } from './feeds';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url));
@@ -84,10 +85,25 @@ describe('indexTripUpdates', () => {
 });
 
 describe('footscrayAlerts', () => {
-	it('returns only alerts for Footscray lines', () => {
-		for (const a of footscrayAlerts(metroAlerts, feedNow)) {
-			expect(a.lines.every((l) => ['SUY', 'WER', 'WIL'].includes(l))).toBe(true);
-		}
+	it('returns only alerts for Footscray lines (including their replacement buses)', () => {
+		const alert = (id: string, routeId: string) => ({
+			id,
+			alert: {
+				effect: EFFECT.MODIFIED_SERVICE,
+				informedEntity: [{ routeId }],
+				headerText: { translation: [{ text: `Buses replace trains ${id}` }] }
+			}
+		});
+		const feed: Feed = {
+			entity: [
+				alert('a', 'aus:vic:vic-02-SUY:'),
+				alert('b', 'aus:vic:vic-02-WER-R:'),
+				alert('c', 'aus:vic:vic-02-CGB:')
+			]
+		};
+		const alerts = footscrayAlerts(feed, T);
+		expect(alerts.map((a) => a.id)).toEqual(['a', 'b']);
+		expect(alerts.map((a) => a.lines)).toEqual([['SUY'], ['WER']]);
 	});
 
 	it('drops alerts outside their active period', () => {
@@ -169,5 +185,38 @@ describe('decodeFeed filtering', () => {
 		expect(
 			kept.every((e) => ['SUY', 'WER', 'WIL'].includes(e.tripUpdate!.trip!.tripId!.slice(3, 6)))
 		).toBe(true);
+	});
+});
+
+describe('banner alerts are about trains running', () => {
+	it.each([
+		[
+			EFFECT.MODIFIED_SERVICE,
+			'Planned work: Buses replace trains from Newport to Werribee',
+			'',
+			true
+		],
+		[EFFECT.SIGNIFICANT_DELAYS, 'Delays on the Sunbury line', '', true],
+		[EFFECT.NO_SERVICE, 'No trains between Footscray and Sunshine', '', true],
+		[EFFECT.REDUCED_SERVICE, 'Planned Works', '', true],
+		[
+			EFFECT.OTHER_EFFECT,
+			'Planned work: Albion Station car park',
+			'A section of the car park is closed.',
+			false
+		],
+		[EFFECT.OTHER_EFFECT, 'Planned work: Tottenham Station car space closures', '', false],
+		[EFFECT.OTHER_EFFECT, 'Planned work: Southern Cross Station lift works', '', false],
+		[EFFECT.ACCESSIBILITY_ISSUE, 'Lift out of service at Footscray', 'Trains are delayed', false],
+		[EFFECT.OTHER_EFFECT, 'Minor delays', 'Trains may be delayed up to 10 minutes.', true],
+		[undefined, 'Sunbury line', 'Trains cancelled due to a police operation.', true],
+		[EFFECT.UNKNOWN_EFFECT, 'Station notice', 'New artwork installed.', false]
+	])('effect %s "%s" -> %s', (effect, header, description, expected) => {
+		expect(isServiceAlert(effect, header, description)).toBe(expected);
+	});
+
+	it('drops car park notices from the recorded feed', () => {
+		const alerts = footscrayAlerts(metroAlerts, feedNow);
+		expect(alerts.some((a) => /car (park|space)/i.test(a.header))).toBe(false);
 	});
 });

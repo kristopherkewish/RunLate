@@ -46,6 +46,8 @@ export interface Alert {
 	activePeriod?: { start?: number; end?: number }[];
 	/** Only route_id and direction_id are decoded. */
 	informedEntity?: { routeId?: string; directionId?: number }[];
+	cause?: number;
+	effect?: number;
 	headerText?: TranslatedString;
 	descriptionText?: TranslatedString;
 }
@@ -67,6 +69,20 @@ export const TRIP = {
 	CANCELED: 3,
 	DUPLICATED: 6,
 	NEW: 8
+} as const;
+/** Alert.Effect */
+export const EFFECT = {
+	NO_SERVICE: 1,
+	REDUCED_SERVICE: 2,
+	SIGNIFICANT_DELAYS: 3,
+	DETOUR: 4,
+	ADDITIONAL_SERVICE: 5,
+	MODIFIED_SERVICE: 6,
+	OTHER_EFFECT: 7,
+	UNKNOWN_EFFECT: 8,
+	STOP_MOVED: 9,
+	NO_EFFECT: 10,
+	ACCESSIBILITY_ISSUE: 11
 } as const;
 /** TripUpdate.StopTimeUpdate.ScheduleRelationship */
 export const STOP = { SCHEDULED: 0, SKIPPED: 1, NO_DATA: 2 } as const;
@@ -265,7 +281,9 @@ function alert(r: Reader, keep: (a: Alert) => boolean): Alert | null {
 				else s.skip(sw);
 			});
 			(out.informedEntity ??= []).push(sel);
-		} else if (f === 10 && w === 2) text.header = r.bytes();
+		} else if (f === 6 && w === 0) out.cause = r.varint();
+		else if (f === 7 && w === 0) out.effect = r.varint();
+		else if (f === 10 && w === 2) text.header = r.bytes();
 		else if (f === 11 && w === 2) text.description = r.bytes();
 		else r.skip(w);
 	});

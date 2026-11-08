@@ -15,7 +15,14 @@ import {
 	type TimetableDay
 } from '../footscray';
 import type { Feed, LiveData } from './feeds';
-import { STOP, TRIP, type StopTimeUpdate, type TranslatedString, type TripUpdate } from './gtfsr';
+import {
+	EFFECT,
+	STOP,
+	TRIP,
+	type StopTimeUpdate,
+	type TranslatedString,
+	type TripUpdate
+} from './gtfsr';
 
 export const WINDOW_BEFORE_S = 30; // keep a departed train on screen briefly ("Now")
 export const WINDOW_AFTER_S = 4 * 3600;
@@ -96,7 +103,34 @@ function text(t: TranslatedString | null | undefined): string {
 	return (tr.find((x) => !x.language || x.language === 'en') ?? tr[0])?.text?.trim() ?? '';
 }
 
-/** Metro alerts that affect Footscray's lines and are active now. */
+// Alerts the banner is for: problems with trains running. Facility notices
+// (car parks, lifts, escalators) are left out.
+const SERVICE_EFFECTS = new Set<number>([
+	EFFECT.NO_SERVICE,
+	EFFECT.REDUCED_SERVICE,
+	EFFECT.SIGNIFICANT_DELAYS,
+	EFFECT.DETOUR,
+	EFFECT.MODIFIED_SERVICE,
+	EFFECT.STOP_MOVED
+]);
+const VAGUE_EFFECTS = new Set<number>([EFFECT.OTHER_EFFECT, EFFECT.UNKNOWN_EFFECT]);
+// Safety net for disruptions tagged with a vague effect.
+const SERVICE_WORDS =
+	/\b(delay(s|ed)?|cancel(l?ed|lations?)|buses replace|replacement bus(es)?|suspended|not running|no trains|disruption|reduced service|altered timetable|terminat(e|es|ing))\b/i;
+
+/** Whether an alert is about trains running (vs. car parks, lifts, etc.). */
+export function isServiceAlert(
+	effect: number | undefined,
+	header: string,
+	description: string
+): boolean {
+	const e = effect ?? EFFECT.UNKNOWN_EFFECT;
+	if (SERVICE_EFFECTS.has(e)) return true;
+	if (VAGUE_EFFECTS.has(e)) return SERVICE_WORDS.test(`${header} ${description}`);
+	return false; // accessibility issues, additional service, no effect
+}
+
+/** Metro alerts about train service on Footscray's lines that are active now. */
 export function footscrayAlerts(feed: Feed | null, now: number): Alert[] {
 	const out: Alert[] = [];
 	const seen = new Set<string>();
@@ -115,6 +149,7 @@ export function footscrayAlerts(feed: Feed | null, now: number): Alert[] {
 		if (!lines.size) continue;
 		const header = text(a.headerText);
 		const description = text(a.descriptionText);
+		if (!isServiceAlert(a.effect, header, description)) continue;
 		const key = header + '|' + description;
 		if (seen.has(key)) continue;
 		seen.add(key);

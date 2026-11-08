@@ -1,16 +1,16 @@
-/* The station screens are always dark, so the board is too (no light theme). */
+/* Light board: white background, dark text. */
 :root {
-	color-scheme: dark;
-	--bg: #000;
-	--panel: #0d0f14;
-	--panel-head: #1a1d24;
-	--fg: #fff;
-	--muted: #a9afbb;
-	--accent: #ffffff;
+	color-scheme: light;
+	--bg: #fff;
+	--panel: #f4f5f7;
+	--panel-head: #e4e7ec;
+	--fg: #0b0d12;
+	--muted: #5b6270;
+	--accent: #0b0d12;
 	--brand: #0072ce;
 	--vline: #8f1a95;
 	--warn: #ffb81c;
-	--bad: #ff5a4f;
+	--bad: #d7261e;
 	--alert-bg: #ffb81c;
 	--alert-fg: #000;
 	--gap: clamp(4px, 0.6vw, 12px);
